@@ -79,12 +79,13 @@ class MLP(nn.Module):
         """ Forward pass """
         return self.layers(x)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Device: ", device)
 
 # MLP Training
 def nif_train(data_in, data_out, batch_size):
     # GPU or not GPU
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print("Device: ", device)
+    
 
     # Initialize the MLP
     mlp = MLP()
@@ -112,7 +113,7 @@ def nif_train(data_in, data_out, batch_size):
 
         # Creating batch indices
         permutation = torch.randperm(data_in.size()[0])
-
+        print(data_in.size())
         # Set current loss value
         current_loss = 0.0
         accuracy = 0
@@ -163,19 +164,50 @@ def binary_acc(y_pred, y_test):
     accuracy = torch.round(accuracy * 100)
     return accuracy
 
+def generate_occupancy(occupancy):
+    resolution = 10
+    step = 2 / resolution
+
+    # Voxel coordinates
+    X, Y, Z = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
+
+    print(X.shape)
+    i = 1
+    # read the input silhouettes
+    for g in range(12):
+        myFile = "image{0}.pgm".format(g)
+        print(myFile)
+        img = mpimg.imread(myFile)
+        if img.dtype == np.float32:  # if not integer
+            img = (img * 255).astype(np.uint8)
+        
+        projec = calib[g].reshape(3,4)
+        print(img.shape)
+
+        for i in range(len(X)):
+            for j in range(len(Y)): 
+                for k in range(len(Z)//2):
+                    p = projec.dot(np.array([X[i][j][k], Y[i][j][k], Z[i][j][k], 1]).reshape(4,-1))
+                    print(p)
+                    if((int(p[0]/p[2])<300 and int(p[1]/p[2])<300) and img[int(p[0]/p[2]),int(p[1]/p[2])]==0):
+                        occupancy[i][j][k] = 0  
+    
 
 def main():
     # Generate X,Y,Z and occupancy
 
     # Format data for PyTorch
     data_in = np.stack((X, Y, Z), axis=-1)
+    
+    generate_occupancy(occupancy)
     resolution_cube = resolution * resolution * resolution
     data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
 
+    
     # Pytorch format
-    data_in = torch.from_numpy(data_in)
-    data_out = torch.from_numpy(data_out)
+    data_in = torch.from_numpy(data_in).to(device)
+    data_out = torch.from_numpy(data_out).to(device)
 
     # Train mlp
     mlp = nif_train(data_in, data_out, BATCH_SIZE)  # data_out.size()[0])
@@ -187,6 +219,7 @@ def main():
     # Go back to 3D grid
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
     newocc = np.around(newocc)
+    print(newocc)
 
     # Marching cubes
     verts, faces, normals, values = measure.marching_cubes(newocc, 0.25)

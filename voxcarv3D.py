@@ -38,7 +38,7 @@ calib = np.array([
 
 # Build 3D grids
 # 3D Grids are of size: resolution x resolution x resolution/2
-resolution = 60
+resolution = 30
 step = 2 / resolution
 
 # Voxel coordinates
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     print(X.shape)
     i = 1
     # read the input silhouettes
-    for g in range(1):
+    for g in range(12):
         myFile = "image{0}.pgm".format(g)
         print(myFile)
         img = mpimg.imread(myFile)
@@ -75,15 +75,6 @@ if __name__ == "__main__":
                     
                     if((int(p[0]/p[2])<300 and int(p[1]/p[2])<300) and img[int(p[0]/p[2]),int(p[1]/p[2])]==0):
                         occupancy[i][j][k] = 0  
-
-
-
-
-
-
-    # TODO: Compute grid projection in images
-
-    # TODO: Update grid occupancy
 
     # Voxel visualization
 
