@@ -38,7 +38,11 @@ calib = np.array([
 
 # Build 3D grids
 # 3D Grids are of size: resolution x resolution x resolution/2
+<<<<<<< HEAD
 resolution = 200
+=======
+resolution = 30
+>>>>>>> e906c87ccdabb3308b82e358f5f8e6a348ed74a1
 step = 2 / resolution
 
 # Voxel coordinates
@@ -75,15 +79,6 @@ if __name__ == "__main__":
                     
                     if((int(p[0]/p[2])<300 and int(p[1]/p[2])<300) and img[int(p[0]/p[2]),int(p[1]/p[2])]==0):
                         occupancy[i][j][k] = 0  
-
-
-
-
-
-
-    # TODO: Compute grid projection in images
-
-    # TODO: Update grid occupancy
 
     # Voxel visualization
 
