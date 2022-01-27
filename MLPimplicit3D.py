@@ -36,12 +36,12 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 10
+MAX_EPOCH = 100
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 300
+resolution = 100
 step = 2 / resolution
 
 # Voxel coordinates
@@ -52,6 +52,9 @@ occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
 
 # Voxels are initially occupied then carved with silhouette information
 occupancy.fill(1)
+
+print("occupancy",occupancy)
+print("occupancy.shape",occupancy.shape)
 
 
 # MLP class
@@ -113,7 +116,7 @@ def nif_train(data_in, data_out, batch_size):
 
         # Creating batch indices
         permutation = torch.randperm(data_in.size()[0])
-        print(data_in.size())
+        print("data_in.size()",data_in.size())
         # Set current loss value
         current_loss = 0.0
         accuracy = 0
@@ -149,7 +152,7 @@ def nif_train(data_in, data_out, batch_size):
 
         outputs = torch.sigmoid(mlp(data_in.float()))
         acc = binary_acc(outputs, data_out)
-        print("Binary accuracy: ", acc)
+        print("Binary accuracy: ", acc, "output \n", outputs)
 
         # Training is complete.
     print('MLP trained.')
@@ -165,41 +168,48 @@ def binary_acc(y_pred, y_test):
     return accuracy
 
 def generate_occupancy(occupancy):
-    resolution = 10
-    step = 2 / resolution
+
+    resolution_p = 100
+    step = 2 / resolution_p
+    
+    print("==============================================")
+    print("Starting the construction of the initial guess")
 
     # Voxel coordinates
-    X, Y, Z = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
+    Xp, Yp, Zp = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
 
-    print(X.shape)
+    print("Xp.shape",Xp.shape)
     i = 1
     # read the input silhouettes
     for g in range(12):
         myFile = "image{0}.pgm".format(g)
-        print(myFile)
+
         img = mpimg.imread(myFile)
         if img.dtype == np.float32:  # if not integer
             img = (img * 255).astype(np.uint8)
         
         projec = calib[g].reshape(3,4)
-        print(img.shape)
+
 
         for i in range(len(X)):
             for j in range(len(Y)): 
                 for k in range(len(Z)//2):
-                    p = projec.dot(np.array([X[i][j][k], Y[i][j][k], Z[i][j][k], 1]).reshape(4,-1))
-                    print(p)
+                    p = projec.dot(np.array([Xp[i][j][k], Yp[i][j][k], Zp[i][j][k], 1]).reshape(4,-1))
+
                     if((int(p[0]/p[2])<300 and int(p[1]/p[2])<300) and img[int(p[0]/p[2]),int(p[1]/p[2])]==0):
                         occupancy[i][j][k] = 0  
+    print("==============================================")
+    print("Ended the construction of the initial guess")
+
     
 
 def main():
     # Generate X,Y,Z and occupancy
-
+    generate_occupancy(occupancy)
     # Format data for PyTorch
     data_in = np.stack((X, Y, Z), axis=-1)
     
-    generate_occupancy(occupancy)
+    
     resolution_cube = resolution * resolution * resolution
     data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
@@ -214,12 +224,30 @@ def main():
 
     # Visualization on training data
     outputs = mlp(data_in.float())
+    
+    print("**",outputs)
     occ = outputs.detach().cpu().numpy()  # from torch format to numpy
+
+    print("occ.shape",occ.shape)
+    print("occ",occ)
 
     # Go back to 3D grid
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
-    newocc = np.around(newocc)
-    print(newocc)
+    newocc = np.abs(np.around(newocc))
+    
+    #print(newocc)
+    print("newocc.shape",newocc.shape)
+    
+    #newocc = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
+    #newocc.fill(1)
+    
+    
+    newocc = newocc.astype(int)
+    #print(newocc)
+    print("newocc",newocc)
+    print("newocc.shape",newocc.shape)
+    
+    
 
     # Marching cubes
     verts, faces, normals, values = measure.marching_cubes(newocc, 0.25)
