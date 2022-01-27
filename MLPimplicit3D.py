@@ -7,6 +7,8 @@ import torch
 from torch import nn
 import trimesh
 
+import random
+
 # Camera Calibration for Al's image[1..12].pgm
 calib = np.array([
     [-78.8596, -178.763, -127.597, 300, -230.924, 0, -33.6163, 300,
@@ -36,12 +38,12 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 100
+MAX_EPOCH = 50
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 100
+resolution = 50
 step = 2 / resolution
 
 # Voxel coordinates
@@ -53,8 +55,8 @@ occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
 # Voxels are initially occupied then carved with silhouette information
 occupancy.fill(1)
 
-print("occupancy",occupancy)
-print("occupancy.shape",occupancy.shape)
+print(" old occupancy",occupancy)
+print("old occupancy.shape",occupancy.shape)
 
 
 # MLP class
@@ -152,9 +154,10 @@ def nif_train(data_in, data_out, batch_size):
 
         outputs = torch.sigmoid(mlp(data_in.float()))
         acc = binary_acc(outputs, data_out)
-        print("Binary accuracy: ", acc, "output \n", outputs)
+        print("Binary accuracy: ", acc, "\n output \n", outputs)
 
-        # Training is complete.
+    # Training is complete.
+    print("Final output \n", outputs)
     print('MLP trained.')
     return mlp
 
@@ -169,16 +172,14 @@ def binary_acc(y_pred, y_test):
 
 def generate_occupancy(occupancy):
 
-    resolution_p = 100
-    step = 2 / resolution_p
+    #resolution_p = 100
+    step = 2 / resolution
     
     print("==============================================")
     print("Starting the construction of the initial guess")
 
     # Voxel coordinates
     Xp, Yp, Zp = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
-
-    print("Xp.shape",Xp.shape)
     i = 1
     # read the input silhouettes
     for g in range(12):
@@ -206,19 +207,34 @@ def generate_occupancy(occupancy):
 def main():
     # Generate X,Y,Z and occupancy
     generate_occupancy(occupancy)
-    # Format data for PyTorch
+    
+    print("Generated ocupancy")
+    print(occupancy)
+    print("number of insides", np.count_nonzero(occupancy == 1))
+    # Format data for PyTorch    
     data_in = np.stack((X, Y, Z), axis=-1)
     
+    print("**",data_in.shape)
+    #print(X)
+    print(X.shape)
     
+    size = (resolution * resolution * resolution // 2)
+    
+    data_in = np.random.rand(size,3)
+    
+    
+    print(data_in)
     resolution_cube = resolution * resolution * resolution
-    data_in = np.reshape(data_in, (resolution_cube // 2, 3))
+    #data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
 
     
     # Pytorch format
     data_in = torch.from_numpy(data_in).to(device)
     data_out = torch.from_numpy(data_out).to(device)
-
+    
+    print("**",data_in.shape)
+    
     # Train mlp
     mlp = nif_train(data_in, data_out, BATCH_SIZE)  # data_out.size()[0])
 
@@ -226,6 +242,7 @@ def main():
     outputs = mlp(data_in.float())
     
     print("**",outputs)
+    
     occ = outputs.detach().cpu().numpy()  # from torch format to numpy
 
     print("occ.shape",occ.shape)
@@ -233,7 +250,7 @@ def main():
 
     # Go back to 3D grid
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
-    newocc = np.abs(np.around(newocc))
+    #newocc = np.abs(np.around(newocc))
     
     #print(newocc)
     print("newocc.shape",newocc.shape)
@@ -242,10 +259,11 @@ def main():
     #newocc.fill(1)
     
     
-    newocc = newocc.astype(int)
+    newocc = np.where(newocc<=0., 0, 1)
     #print(newocc)
     print("newocc",newocc)
     print("newocc.shape",newocc.shape)
+    print("number of insides", np.count_nonzero(newocc == 1))
     
     
 
@@ -253,7 +271,7 @@ def main():
     verts, faces, normals, values = measure.marching_cubes(newocc, 0.25)
     # Export in a standard file format
     surf_mesh = trimesh.Trimesh(verts, faces, validate=True)
-    surf_mesh.export('alimplicit.off')
+    surf_mesh.export('alimplicit_.off')
 
 
 # --------- MAIN ---------
