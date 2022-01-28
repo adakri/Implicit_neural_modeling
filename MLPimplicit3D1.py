@@ -8,6 +8,7 @@ from torch import nn
 import trimesh
 
 import random
+import matplotlib.pyplot as plt
 
 # Camera Calibration for Al's image[1..12].pgm
 calib = np.array([
@@ -43,7 +44,7 @@ BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 100
+resolution = 50
 step = 2 / resolution
 
 # Voxel coordinates
@@ -54,6 +55,10 @@ occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
 
 # Voxels are initially occupied then carved with silhouette information
 occupancy.fill(1)
+
+# drawing the accuracy plot
+accuracies = []
+epochs = []
 
 print(" old occupancy",occupancy)
 print("old occupancy.shape",occupancy.shape)
@@ -70,9 +75,11 @@ class MLP(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(3, 60),
             nn.Tanh(),
-            nn.Linear(60, 120),
+            nn.Linear(60, 60),
             nn.ReLU(),
-            nn.Linear(120, 60),
+            nn.Linear(60, 60),
+            #nn.ReLU(),
+            #nn.Linear(180, 60),
             nn.ReLU(),
             nn.Linear(60, 30),
             nn.ReLU(),
@@ -110,6 +117,11 @@ def nif_train(data_in, data_out, batch_size):
     # sigmoid included in this loss function
     loss_function = nn.BCEWithLogitsLoss(pos_weight=p_weight)
     optimizer = torch.optim.SGD(mlp.parameters(), lr=1e-2)
+    
+    #Starting the matplotlib
+    plt.figure(figsize=(9, 5))
+    plt.title("Accuracy through training")
+    
 
     # Run the training loop
     for epoch in range(0, MAX_EPOCH):
@@ -154,11 +166,18 @@ def nif_train(data_in, data_out, batch_size):
 
         outputs = torch.sigmoid(mlp(data_in.float()))
         acc = binary_acc(outputs, data_out)
+        
+        epochs.append(epoch)
+        accuracies.append(acc)
         print("Binary accuracy: ", acc, "\n output \n", outputs)
 
     # Training is complete.
     print("Final output \n", outputs)
     print('MLP trained.')
+    
+    print("Saving the figure in results/accuracy.png")
+    plt.plot(epochs, accuracies)
+    plt.savefig("results/accuracy.png")
     return mlp
 
 
@@ -209,12 +228,13 @@ def main():
     generate_occupancy(occupancy)
     
     print("Generated ocupancy")
-    print(occupancy)
+    #print(occupancy)
     print("number of insides", np.count_nonzero(occupancy == 1))
     # Format data for PyTorch
     data_in = np.stack((X, Y, Z), axis=-1)
     
-    print("original data", data_in)
+    print("original data")
+    print(data_in.shape)
     
     
     resolution_cube = resolution * resolution * resolution

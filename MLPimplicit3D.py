@@ -216,24 +216,26 @@ def main():
     generate_occupancy(occupancy)
     
     print("Generated ocupancy")
-    print(occupancy)
+    #print(occupancy)
     print("number of insides", np.count_nonzero(occupancy == 1))
     # Format data for PyTorch    
     data_in = np.stack((X, Y, Z), axis=-1)
     
     print("**",data_in.shape)
     #print(X)
-    print(X.shape)
+
     
     size = (resolution * resolution * resolution // 2)
     
     data_in = np.random.rand(size,3)
     
+    print("new data shape", data_in.shape)  
     
-    print(data_in)
     resolution_cube = resolution * resolution * resolution
     data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
+    
+    print("reshaped",data_in)
 
 
     # The modif of quastion 3 ought to be done before porting the data to gpu
@@ -270,19 +272,6 @@ def main():
     """
     
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
-    #newocc = np.abs(np.around(newocc))
-    
-    #print(newocc)
-    print("newocc.shape",newocc.shape)
-    
-    #newocc = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
-    #newocc.fill(1)
-    
-    
-    newocc = np.where(newocc<=0., 0, 1)
-    #print(newocc)
-    print("newocc",newocc)
-    print("newocc.shape",newocc.shape)
     print("number of insides", np.count_nonzero(newocc == 1))
     
     
