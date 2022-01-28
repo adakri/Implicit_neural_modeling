@@ -38,12 +38,12 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 50
+MAX_EPOCH = 10
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 50
+resolution = 20
 step = 2 / resolution
 
 # Voxel coordinates
@@ -99,9 +99,16 @@ def nif_train(data_in, data_out, batch_size):
 
     # Normalize cost between 0 and 1 in the grid
     n_one = (data_out == 1).sum()
+    
 
     # loss for positives will be multiplied by this factor in the loss function
     p_weight = (data_out.size()[0] - n_one) / n_one
+    
+    """ 
+    The strat seems to me to be this:
+    pop all the zeroes at each epoch (reduce the number), only fill the occupancy later, 		p_weight will not change.
+    
+    """
     print("Pos. Weight: ", p_weight)
 
     # Define the loss function and optimizer
@@ -153,8 +160,8 @@ def nif_train(data_in, data_out, batch_size):
                       ((i/batch_size) + 1, current_loss / (i/batch_size) + 1))
 
         outputs = torch.sigmoid(mlp(data_in.float()))
-        acc = binary_acc(outputs, data_out)
-        print("Binary accuracy: ", acc, "\n output \n", outputs)
+        #acc = binary_acc(outputs, data_out)
+        #print("Binary accuracy: ", acc, "\n output \n", outputs)
 
     # Training is complete.
     print("Final output \n", outputs)
@@ -225,9 +232,13 @@ def main():
     
     print(data_in)
     resolution_cube = resolution * resolution * resolution
-    #data_in = np.reshape(data_in, (resolution_cube // 2, 3))
+    data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
 
+
+    # The modif of quastion 3 ought to be done before porting the data to gpu
+    #reduce number of points
+    #data_in = data_in[np.where(data_out == 1 )[0]]
     
     # Pytorch format
     data_in = torch.from_numpy(data_in).to(device)
@@ -249,6 +260,15 @@ def main():
     print("occ",occ)
 
     # Go back to 3D grid
+    
+    # Q3
+    #pad the output
+    """
+    newocc = np.zeros((resolution* resolution* resolution // 2))
+    newocc[: occ.shape[0]] = occ.ravel()
+    newocc = np.reshape(newocc,(resolution, resolution, resolution // 2))
+    """
+    
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
     #newocc = np.abs(np.around(newocc))
     

@@ -38,12 +38,12 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 100
+MAX_EPOCH = 50
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 120
+resolution = 100
 step = 2 / resolution
 
 # Voxel coordinates
@@ -214,7 +214,7 @@ def main():
     # Format data for PyTorch
     data_in = np.stack((X, Y, Z), axis=-1)
     
-    peinr("original data", data_in)
+    print("original data", data_in)
     
     
     resolution_cube = resolution * resolution * resolution
