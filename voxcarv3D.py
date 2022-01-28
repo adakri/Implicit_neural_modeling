@@ -60,7 +60,7 @@ if __name__ == "__main__":
     #print(X.shape)
     i = 1
     # read the input silhouettes
-    for g in range(1):
+    for g in range(12):
         myFile = "image{0}.pgm".format(g)
         print(myFile)
         img = mpimg.imread(myFile)
