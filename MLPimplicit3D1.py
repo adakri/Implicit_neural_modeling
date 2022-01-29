@@ -39,14 +39,14 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 50
+MAX_EPOCH = 30
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 50
+resolution = 80
 step = 2 / resolution
-
+offset = 12
 # Voxel coordinates
 X, Y, Z = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
 
@@ -60,7 +60,7 @@ occupancy.fill(1)
 accuracies = []
 epochs = []
 
-print(" old occupancy",occupancy)
+#print(" old occupancy",occupancy)
 print("old occupancy.shape",occupancy.shape)
 
 
@@ -224,8 +224,44 @@ def generate_occupancy(occupancy):
     
 
 def main():
+    # Voxel occupancy
+    occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
+
+    # Voxels are initially occupied then carved with silhouette information
+    occupancy.fill(1)
+
     # Generate X,Y,Z and occupancy
     generate_occupancy(occupancy)
+    	
+    # Reduce outside points
+
+    indexes = np.where(occupancy != 0)
+    print(len(indexes[0]))
+    """
+    for i in range(len(indexes[0])):
+    	xvals = X[indexes[0][i],indexes[1][i],indexes[2][i]]
+    	yvals = Y[indexes[0][i],indexes[1][i],indexes[2][i]]
+    	zvals = Z[indexes[0][i],indexes[1][i],indexes[2][i]]
+    	occupancy_vals = occupancy[indexes[0][i],indexes[1][i],indexes[2][i]]
+    
+    
+    
+    #print(X)
+    """	
+    offx = offset
+    offy = offset
+    offz = offset // 2
+    
+    print(X.shape)
+    l,h,w= X.shape
+
+    resolutionx = l - 2*offx
+    resolutiony = h - 2*offy
+    resolutionz = w - 2*offz
+    
+    print(resolutionx)
+    print(resolutiony)
+    print(resolutionz)
     
     print("Generated ocupancy")
     #print(occupancy)
@@ -233,14 +269,18 @@ def main():
     # Format data for PyTorch
     data_in = np.stack((X, Y, Z), axis=-1)
     
+    
+    data_in = data_in[offx:l-offx,offy:h-offx,offz:w-offz]
+    occupancy = occupancy[offx:l-offx,offy:h-offx,offz:w-offz]
+    
+    
     print("original data")
     print(data_in.shape)
     
     
-    resolution_cube = resolution * resolution * resolution
-    data_in = np.reshape(data_in, (resolution_cube // 2, 3))
-    data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
-
+    resolution_cube = resolutionx * resolutiony * resolutionz
+    data_in = np.reshape(data_in, (resolution_cube, 3))
+    data_out = np.reshape(occupancy, (resolution_cube, 1))
     
     # Pytorch format
     data_in = torch.from_numpy(data_in).to(device)
@@ -260,7 +300,7 @@ def main():
     print("occ",occ)
 
     # Go back to 3D grid
-    newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
+    newocc = np.reshape(occ, (resolutionx, resolutiony, resolutionz))
     #newocc = np.abs(np.around(newocc))
     
     #print(newocc)

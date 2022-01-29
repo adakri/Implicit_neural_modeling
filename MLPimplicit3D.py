@@ -38,12 +38,12 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 10
+MAX_EPOCH = 50
 BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 30
+resolution = 120
 step = 2 / resolution
 
 # Voxel coordinates
@@ -179,7 +179,7 @@ def binary_acc(y_pred, y_test):
     return accuracy
 
 
-def generate_occupancy(occupancy):
+def generate_occupancy(occupancy, Xp, Yp, Zp):
 
     #resolution_p = 100
     step = 2 / resolution
@@ -188,10 +188,7 @@ def generate_occupancy(occupancy):
     print("Starting the construction of the initial guess")
 
     # Voxel coordinates
-    Xp, Yp, Zp = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
-    
-    
-    
+    #Xp, Yp, Zp = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
     
     i = 1
     # read the input silhouettes
@@ -218,7 +215,7 @@ def generate_occupancy(occupancy):
 
 def main():
     # Generate X,Y,Z and occupancy
-    generate_occupancy(occupancy)
+    #generate_occupancy(occupancy)
 
     print("Generated ocupancy")
     # print(occupancy)
@@ -248,6 +245,8 @@ def main():
         Xr, Yr, Zr = np.meshgrid(x_range, y_range, z_range)
         data_in = np.stack((Xr, Yr, Zr), axis=-1)
         
+        # Generate X,Y,Z and occupancy
+        generate_occupancy(occupancy, Xr, Yr, Zr)
         print("random data in shape", data_in.shape)
 
     if(OPTIMIZE):
@@ -257,6 +256,7 @@ def main():
 
     resolution_cube = resolution * resolution * resolution
     data_in_ = np.reshape(data_in, (resolution_cube // 2, 3))
+    data_in_uniform = np.reshape(data_in_uniform, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
 
     # The modif of quastion 3 ought to be done before porting the data to gpu
@@ -266,6 +266,7 @@ def main():
     # Pytorch format
     data_in_ = torch.from_numpy(data_in_).to(device)
     data_out = torch.from_numpy(data_out).to(device)
+    data_in_uniform = torch.from_numpy(data_in_uniform).to(device)
 
     print("gpu data_in", data_in.shape)
     print("gpu data_out", data_out.shape)
@@ -274,7 +275,7 @@ def main():
     mlp = nif_train(data_in_, data_out, BATCH_SIZE)  # data_out.size()[0])
 
     # Visualization on training data
-    outputs = mlp(data_in_.float())
+    outputs = mlp(data_in_uniform.float())
 
     print("**",outputs)
 
@@ -286,20 +287,7 @@ def main():
     newocc_uniform = newocc.copy()
     
     print(data_in.shape)
-    
-    for i in range(resolution):
-    	for j in range(resolution):
-    		for k in range(resolution//2):
-    			r_idx = data_in[i][j][k]
-    			print(r_idx)
-    			indexes = list(data_in_uniform).index(r_idx)
-    			print("**",indexes)
-    			print(indexes.shape)
-    			if(len(indexes[0]) == 0):
-    				continue
-    			else:
-    				newocc_uniform[indexes] = newocc[i][j][k]
-    			
+   		
     
  
 
