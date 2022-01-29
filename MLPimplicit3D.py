@@ -15,7 +15,7 @@ calib = np.array([
      -0.525731, 0, -0.85065, 2],
     [0, -221.578, 73.2053, 300, -178.763, -127.597, -78.8596, 300,
      0, -0.85065, -0.525731, 2],
-    [ 78.8596, -178.763, -127.597, 300, -73.2053, 0, -221.578, 300,
+    [78.8596, -178.763, -127.597, 300, -73.2053, 0, -221.578, 300,
      0.525731, 0, -0.85065, 2],
     [0, 33.6163, -230.924, 300, -178.763, 127.597, -78.8596, 300,
      0, 0.85065, -0.525731, 2],
@@ -43,7 +43,7 @@ BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 20
+resolution = 50
 step = 2 / resolution
 
 # Voxel coordinates
@@ -55,8 +55,8 @@ occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
 # Voxels are initially occupied then carved with silhouette information
 occupancy.fill(1)
 
-print(" old occupancy",occupancy)
-print("old occupancy.shape",occupancy.shape)
+print(" old occupancy", occupancy)
+print("old occupancy.shape", occupancy.shape)
 
 
 # MLP class
@@ -84,13 +84,15 @@ class MLP(nn.Module):
         """ Forward pass """
         return self.layers(x)
 
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device: ", device)
 
 # MLP Training
+
+
 def nif_train(data_in, data_out, batch_size):
     # GPU or not GPU
-    
 
     # Initialize the MLP
     mlp = MLP()
@@ -99,11 +101,10 @@ def nif_train(data_in, data_out, batch_size):
 
     # Normalize cost between 0 and 1 in the grid
     n_one = (data_out == 1).sum()
-    
 
     # loss for positives will be multiplied by this factor in the loss function
     p_weight = (data_out.size()[0] - n_one) / n_one
-    
+
     """ 
     The strat seems to me to be this:
     pop all the zeroes at each epoch (reduce the number), only fill the occupancy later, 		p_weight will not change.
@@ -125,7 +126,7 @@ def nif_train(data_in, data_out, batch_size):
 
         # Creating batch indices
         permutation = torch.randperm(data_in.size()[0])
-        print("data_in.size()",data_in.size())
+        print("data_in.size()", data_in.size())
         # Set current loss value
         current_loss = 0.0
         accuracy = 0
@@ -177,11 +178,12 @@ def binary_acc(y_pred, y_test):
     accuracy = torch.round(accuracy * 100)
     return accuracy
 
+
 def generate_occupancy(occupancy):
 
     #resolution_p = 100
     step = 2 / resolution
-    
+
     print("==============================================")
     print("Starting the construction of the initial guess")
 
@@ -195,86 +197,87 @@ def generate_occupancy(occupancy):
         img = mpimg.imread(myFile)
         if img.dtype == np.float32:  # if not integer
             img = (img * 255).astype(np.uint8)
-        
-        projec = calib[g].reshape(3,4)
 
+        projec = calib[g].reshape(3, 4)
 
         for i in range(len(X)):
-            for j in range(len(Y)): 
+            for j in range(len(Y)):
                 for k in range(len(Z)//2):
-                    p = projec.dot(np.array([Xp[i][j][k], Yp[i][j][k], Zp[i][j][k], 1]).reshape(4,-1))
+                    p = projec.dot(
+                        np.array([Xp[i][j][k], Yp[i][j][k], Zp[i][j][k], 1]).reshape(4, -1))
 
-                    if((int(p[0]/p[2])<300 and int(p[1]/p[2])<300) and img[int(p[0]/p[2]),int(p[1]/p[2])]==0):
-                        occupancy[i][j][k] = 0  
+                    if((int(p[0]/p[2]) < 300 and int(p[1]/p[2]) < 300) and img[int(p[0]/p[2]), int(p[1]/p[2])] == 0):
+                        occupancy[i][j][k] = 0
     print("==============================================")
     print("Ended the construction of the initial guess")
 
-    
 
 def main():
     # Generate X,Y,Z and occupancy
     generate_occupancy(occupancy)
-    
-    print("Generated ocupancy")
-    #print(occupancy)
-    print("number of insides", np.count_nonzero(occupancy == 1))
-    # Format data for PyTorch    
-    data_in = np.stack((X, Y, Z), axis=-1)
-    
-    print("**",data_in.shape)
-    #print(X)
 
-    
+    print("Generated ocupancy")
+    # print(occupancy)
+    print("number of insides", np.count_nonzero(occupancy == 1))
+    # Format data for PyTorch
+    data_in = np.stack((X, Y, Z), axis=-1)
+
+    print("data in shape", data_in.shape)
+    print("occuoancy shape", occupancy.shape)
+    # print(X)
+
     size = (resolution * resolution * resolution // 2)
-    
-    data_in = np.random.rand(size,3)
-    
-    print("new data shape", data_in.shape)  
-    
+
+    RANDOM = False
+
+    OPTIMIZE = True
+
+    # Randoms
+    if(RANDOM):
+        x_range = np.random.uniform(-1, 1, size=resolution)
+        y_range = np.random.uniform(-1, 1, size=resolution)
+        z_range = np.random.uniform(-0.5, 0.5, size=resolution//2)
+        print(x_range)
+        Xr, Yr, Zr = np.meshgrid(x_range, y_range, z_range)
+        data_in = np.stack((Xr, Yr, Zr), axis=-1)
+
+    if(OPTIMIZE):
+    	print("")
+        # print("*****", data_in
+    print("new data shape", data_in.shape)
+
     resolution_cube = resolution * resolution * resolution
     data_in = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
-    
-    print("reshaped",data_in)
-
 
     # The modif of quastion 3 ought to be done before porting the data to gpu
-    #reduce number of points
+    # reduce number of points
     #data_in = data_in[np.where(data_out == 1 )[0]]
-    
+
     # Pytorch format
     data_in = torch.from_numpy(data_in).to(device)
     data_out = torch.from_numpy(data_out).to(device)
-    
-    print("**",data_in.shape)
-    
+
+    print("gpu data_in", data_in.shape)
+    print("gpu data_out", data_out.shape)
+
     # Train mlp
     mlp = nif_train(data_in, data_out, BATCH_SIZE)  # data_out.size()[0])
 
     # Visualization on training data
     outputs = mlp(data_in.float())
-    
-    print("**",outputs)
-    
+
+    # print("**",outputs)
+
     occ = outputs.detach().cpu().numpy()  # from torch format to numpy
 
-    print("occ.shape",occ.shape)
-    print("occ",occ)
-
     # Go back to 3D grid
-    
-    # Q3
-    #pad the output
-    """
-    newocc = np.zeros((resolution* resolution* resolution // 2))
-    newocc[: occ.shape[0]] = occ.ravel()
-    newocc = np.reshape(newocc,(resolution, resolution, resolution // 2))
-    """
-    
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
+    newocc = np.where(newocc <= 0., 0, 1)
+
+    print("occ.shape", newocc.shape)
+
     print("number of insides", np.count_nonzero(newocc == 1))
-    
-    
 
     # Marching cubes
     verts, faces, normals, values = measure.marching_cubes(newocc, 0.25)

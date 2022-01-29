@@ -75,9 +75,9 @@ class MLP(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(3, 60),
             nn.Tanh(),
-            nn.Linear(60, 60),
+            nn.Linear(60, 120),
             nn.ReLU(),
-            nn.Linear(60, 60),
+            nn.Linear(120, 60),
             #nn.ReLU(),
             #nn.Linear(180, 60),
             nn.ReLU(),
