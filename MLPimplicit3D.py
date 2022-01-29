@@ -43,7 +43,7 @@ BATCH_SIZE = 100
 
 # Build 3D grids
 # 3D Grids are of size resolution x resolution x resolution/2
-resolution = 50
+resolution = 30
 step = 2 / resolution
 
 # Voxel coordinates
@@ -189,6 +189,10 @@ def generate_occupancy(occupancy):
 
     # Voxel coordinates
     Xp, Yp, Zp = np.mgrid[-1:1:step, -1:1:step, -0.5:0.5:step]
+    
+    
+    
+    
     i = 1
     # read the input silhouettes
     for g in range(12):
@@ -220,26 +224,31 @@ def main():
     # print(occupancy)
     print("number of insides", np.count_nonzero(occupancy == 1))
     # Format data for PyTorch
-    data_in = np.stack((X, Y, Z), axis=-1)
+    data_in_uniform = np.stack((X, Y, Z), axis=-1)
 
-    print("data in shape", data_in.shape)
+    #print("data in shape", data_in.shape)
     print("occuoancy shape", occupancy.shape)
     # print(X)
 
     size = (resolution * resolution * resolution // 2)
 
-    RANDOM = False
+    RANDOM = True
 
-    OPTIMIZE = True
+    OPTIMIZE = False
 
     # Randoms
     if(RANDOM):
-        x_range = np.random.uniform(-1, 1, size=resolution)
-        y_range = np.random.uniform(-1, 1, size=resolution)
-        z_range = np.random.uniform(-0.5, 0.5, size=resolution//2)
+        x_range = np.arange(-1,1,step)
+        random.shuffle(x_range)
+        y_range = np.arange(-1,1,step)
+        random.shuffle(y_range)
+        z_range = np.arange(-0.5,0.5,step)
+        random.shuffle(z_range)
         print(x_range)
         Xr, Yr, Zr = np.meshgrid(x_range, y_range, z_range)
         data_in = np.stack((Xr, Yr, Zr), axis=-1)
+        
+        print("random data in shape", data_in.shape)
 
     if(OPTIMIZE):
     	print("")
@@ -247,7 +256,7 @@ def main():
     print("new data shape", data_in.shape)
 
     resolution_cube = resolution * resolution * resolution
-    data_in = np.reshape(data_in, (resolution_cube // 2, 3))
+    data_in_ = np.reshape(data_in, (resolution_cube // 2, 3))
     data_out = np.reshape(occupancy, (resolution_cube // 2, 1))
 
     # The modif of quastion 3 ought to be done before porting the data to gpu
@@ -255,25 +264,44 @@ def main():
     #data_in = data_in[np.where(data_out == 1 )[0]]
 
     # Pytorch format
-    data_in = torch.from_numpy(data_in).to(device)
+    data_in_ = torch.from_numpy(data_in_).to(device)
     data_out = torch.from_numpy(data_out).to(device)
 
     print("gpu data_in", data_in.shape)
     print("gpu data_out", data_out.shape)
 
     # Train mlp
-    mlp = nif_train(data_in, data_out, BATCH_SIZE)  # data_out.size()[0])
+    mlp = nif_train(data_in_, data_out, BATCH_SIZE)  # data_out.size()[0])
 
     # Visualization on training data
-    outputs = mlp(data_in.float())
+    outputs = mlp(data_in_.float())
 
-    # print("**",outputs)
+    print("**",outputs)
 
     occ = outputs.detach().cpu().numpy()  # from torch format to numpy
 
     # Go back to 3D grid
     newocc = np.reshape(occ, (resolution, resolution, resolution // 2))
     newocc = np.where(newocc <= 0., 0, 1)
+    newocc_uniform = newocc.copy()
+    
+    print(data_in.shape)
+    
+    for i in range(resolution):
+    	for j in range(resolution):
+    		for k in range(resolution//2):
+    			r_idx = data_in[i][j][k]
+    			print(r_idx)
+    			indexes = list(data_in_uniform).index(r_idx)
+    			print("**",indexes)
+    			print(indexes.shape)
+    			if(len(indexes[0]) == 0):
+    				continue
+    			else:
+    				newocc_uniform[indexes] = newocc[i][j][k]
+    			
+    
+ 
 
     print("occ.shape", newocc.shape)
 
