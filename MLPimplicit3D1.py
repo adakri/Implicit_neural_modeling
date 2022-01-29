@@ -39,7 +39,7 @@ calib = np.array([
 ])
 
 # Training
-MAX_EPOCH = 30
+MAX_EPOCH = 40
 BATCH_SIZE = 100
 
 # Build 3D grids
@@ -223,6 +223,9 @@ def generate_occupancy(occupancy):
 
     
 
+    
+    
+
 def main():
     # Voxel occupancy
     occupancy = np.ndarray((resolution, resolution, resolution // 2), dtype=int)
@@ -234,30 +237,27 @@ def main():
     generate_occupancy(occupancy)
     	
     # Reduce outside points
-
-    indexes = np.where(occupancy != 0)
-    print(len(indexes[0]))
-    """
-    for i in range(len(indexes[0])):
-    	xvals = X[indexes[0][i],indexes[1][i],indexes[2][i]]
-    	yvals = Y[indexes[0][i],indexes[1][i],indexes[2][i]]
-    	zvals = Z[indexes[0][i],indexes[1][i],indexes[2][i]]
-    	occupancy_vals = occupancy[indexes[0][i],indexes[1][i],indexes[2][i]]
+    indexes = np.where(occupancy == 1)
+    minx = min(indexes[0])
+    maxx = max(indexes[0])
     
+    miny = min(indexes[1])
+    maxy = max(indexes[1])
     
+    minz = min(indexes[2])
+    maxz = max(indexes[2])
     
-    #print(X)
-    """	
-    offx = offset
-    offy = offset
-    offz = offset // 2
+	
+    offx = minx
+    offy = miny
+    offz = minz
     
     print(X.shape)
     l,h,w= X.shape
 
-    resolutionx = l - 2*offx
-    resolutiony = h - 2*offy
-    resolutionz = w - 2*offz
+    resolutionx = maxx - minx
+    resolutiony = maxy - miny
+    resolutionz = maxz - minz
     
     print(resolutionx)
     print(resolutiony)
@@ -270,8 +270,8 @@ def main():
     data_in = np.stack((X, Y, Z), axis=-1)
     
     
-    data_in = data_in[offx:l-offx,offy:h-offx,offz:w-offz]
-    occupancy = occupancy[offx:l-offx,offy:h-offx,offz:w-offz]
+    data_in = data_in[minx:maxx,miny:maxy,minz:maxz]
+    occupancy = occupancy[minx:maxx,miny:maxy,minz:maxz]
     
     
     print("original data")
